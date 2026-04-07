@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { addCmlabsScrapeJob, addJob, addSequenceScrapeJob, getJob } from '../services/jobManager';
+import { addCmlabsScrapeJob, addJob, addSequenceScrapeJob, addStarbuckMenuScrapeJob, getJob } from '../services/jobManager';
 import { logger } from '../utils/logger';
 import path from 'path';
 
@@ -54,7 +54,18 @@ export const handleSequenceScrape = async (req: Request, res: Response) => {
     const jobId = addSequenceScrapeJob(targetUrl);
 
     res.status(202).json({
-        message: "Scraping job started for CMLABS",
+        message: "Scraping job started for Sequence.day",
+        jobId: jobId,
+        statusEndpoint: `/api/status/${jobId}`
+    });
+};
+
+export const handleScrapeStarbuck = (req: Request, res: Response): void => {
+    const targetUrl = 'https://app.starbucks.com/menu';
+    const jobId = addStarbuckMenuScrapeJob(targetUrl);
+
+    res.status(202).json({
+        message: "Scraping job started for starbuck",
         jobId: jobId,
         statusEndpoint: `/api/status/${jobId}`
     });

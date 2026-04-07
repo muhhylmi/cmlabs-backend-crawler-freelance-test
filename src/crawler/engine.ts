@@ -344,3 +344,102 @@ export const scrapeSequenceToTable = async (url: string, jobId: string): Promise
         await context.close();
     }
 };
+
+
+export const scrapeStarbucksToTable = async (url: string, jobId: string): Promise<string> => {
+    // 1. Launch Browser
+    const browser = await getBrowser();
+    const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+    });
+    const page = await context.newPage();
+
+    try {
+        logger.info("🚀 Memulai proses scraping Starbucks...");
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        // Tunggu elemen menu muncul
+        await page.waitForSelector('#drinks');
+
+        // 2. Ambil Data Menu
+        const menuData = await page.evaluate(() => {
+            const results: any = [];
+            const sections = document.querySelectorAll('section');
+
+            sections.forEach(section => {
+                const categoryName = section.querySelector('h2')?.innerText.trim() || 'Lainnya';
+                const items = section.querySelectorAll('a');
+
+                items.forEach(item => {
+                    results.push({
+                        category: categoryName,
+                        itemName: item.innerText.trim(),
+                        url: 'https://www.starbucks.com' + item.getAttribute('href')
+                    });
+                });
+            });
+            return results;
+        });
+
+        logger.info(`✅ Berhasil mengambil ${menuData.length} item.`);
+
+        // 3. Generate String HTML
+        const tableRows = menuData.map((item: any) => `
+            <tr>
+                <td><strong>${item.category}</strong></td>
+                <td>${item.itemName}</td>
+                <td><a href="${item.url}" target="_blank">Cek Detail ☕</a></td>
+            </tr>
+        `).join('');
+
+        const fullHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Daftar Menu Starbucks</title>
+            <style>
+                body { font-family: sans-serif; background: #f4f4f4; padding: 40px; }
+                .card { background: white; max-width: 800px; margin: auto; padding: 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                h1 { color: #007042; text-align: center; border-bottom: 2px solid #007042; padding-bottom: 10px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th { background: #007042; color: white; padding: 12px; text-align: left; }
+                td { padding: 12px; border-bottom: 1px solid #eee; }
+                tr:hover { background: #f9f9f9; }
+                a { color: #007042; text-decoration: none; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h1>Starbucks Menu List</h1>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Kategori</th>
+                            <th>Nama Menu</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+        </body>
+        </html>
+        `;
+
+        // 4. Simpan ke File
+        const fileName = `starbuck_menu_table_${Date.now()}.html`;
+        const filePath = path.join(config.outputDir, fileName);
+
+        await fs.mkdir(config.outputDir, { recursive: true });
+        await fs.writeFile(filePath, fullHTML, 'utf-8');
+
+        return filePath;
+    } catch (error) {
+        console.error("❌ Waduh, gagal scraping:", error);
+        throw error;
+    } finally {
+        await browser.close();
+    }
+}
