@@ -1,6 +1,6 @@
 import pLimit from 'p-limit';
 import crypto from 'crypto';
-import { crawlCmlabsToTable, crawlUrl, structuredCrawlUrl } from '../crawler/engine';
+import { crawlCmlabsToTable, crawlUrl, scrapeSequenceToTable, structuredCrawlUrl } from '../crawler/engine';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 
@@ -87,6 +87,35 @@ export const addCmlabsScrapeJob = (url: string): string => {
         newJob.status = 'processing';
         try {
             const filePath = await crawlCmlabsToTable(url, id);
+            newJob.status = 'completed';
+            newJob.filePath = filePath;
+        } catch (err: any) {
+            newJob.status = 'failed';
+            newJob.error = err.message;
+        }
+        newJob.updatedAt = new Date();
+    });
+
+    return id;
+};
+
+export const addSequenceScrapeJob = (url: string): string => {
+    const id = crypto.randomUUID();
+    const newJob: CrawlJob = {
+        id,
+        url,
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
+
+    jobsStore.set(id, newJob);
+
+    // Masukkan ke queue concurrency
+    limit(async () => {
+        newJob.status = 'processing';
+        try {
+            const filePath = await scrapeSequenceToTable(url, id);
             newJob.status = 'completed';
             newJob.filePath = filePath;
         } catch (err: any) {

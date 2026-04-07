@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { addCmlabsScrapeJob, addJob, getJob } from '../services/jobManager';
+import { addCmlabsScrapeJob, addJob, addSequenceScrapeJob, getJob } from '../services/jobManager';
 import { logger } from '../utils/logger';
 import path from 'path';
 
@@ -41,6 +41,17 @@ export const triggerCrawl = (req: Request, res: Response): void => {
 export const scrapeCmlabs = (req: Request, res: Response): void => {
     const targetUrl = 'https://cmlabs.co';
     const jobId = addCmlabsScrapeJob(targetUrl);
+
+    res.status(202).json({
+        message: "Scraping job started for CMLABS",
+        jobId: jobId,
+        statusEndpoint: `/api/status/${jobId}`
+    });
+};
+
+export const handleSequenceScrape = async (req: Request, res: Response) => {
+    const targetUrl = 'https://www.sequence.day/';
+    const jobId = addSequenceScrapeJob(targetUrl);
 
     res.status(202).json({
         message: "Scraping job started for CMLABS",
